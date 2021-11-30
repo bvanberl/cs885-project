@@ -1,3 +1,13 @@
+## PROJECT-SPECIFIC
+
+venv/
+
+## PYCHARM
+
+.idea/
+
+## PYTHON TEMPLATE
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
