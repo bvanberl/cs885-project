@@ -1,7 +1,13 @@
 ## PROJECT-SPECIFIC
 
 venv/
-results/
+results/causalvae_models
+results/log
+data/
+
+!data/.gitkeep
+!results/causalvae_models/.gitkeep
+!results/log/.gitkeep
 
 ## PYCHARM
 
