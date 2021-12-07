@@ -40,17 +40,17 @@ class DQN_CNN(nn.Module):
         super().__init__()
         self.device = device
         self.net = nn.Sequential(
-            nn.Conv2d(c, 32, kernel_size=3, stride=2), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2), nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=3, stride=2), nn.ReLU(inplace=True),
+            nn.Conv2d(c, 16, kernel_size=3, stride=1), nn.ReLU(inplace=True),
+            nn.Conv2d(16, 32, kernel_size=3, stride=1), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1), nn.ReLU(inplace=True),
             nn.Flatten()
         )
         with torch.no_grad():
             self.output_dim = np.prod(self.net(torch.zeros(1, c, h, w)).shape[1:])
         if not features_only:
             self.net = nn.Sequential(
-                self.net, nn.Linear(self.output_dim, 512), nn.ReLU(inplace=True),
-                nn.Linear(512, np.prod(action_shape))
+                self.net, nn.Linear(self.output_dim, 256), nn.ReLU(inplace=True),
+                nn.Linear(256, np.prod(action_shape))
             )
             self.output_dim = np.prod(action_shape)
 
@@ -69,31 +69,32 @@ class DQN_CNN(nn.Module):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default='CartPole-v0')
+    parser.add_argument('--task', type=str, default='LunarLander-v2')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--eps-test', type=float, default=0.005)
     parser.add_argument('--eps-train', type=float, default=1.)
-    parser.add_argument('--eps-train-final', type=float, default=0.05)
-    parser.add_argument('--buffer-size', type=int, default=100000)
+    parser.add_argument('--eps-train-final', type=float, default=0.01)
+    parser.add_argument('--buffer-size', type=int, default=10000)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=5000)
-    parser.add_argument('--epoch', type=int, default=20)
-    parser.add_argument('--step-per-epoch', type=int, default=20000)
+    parser.add_argument('--epoch', type=int, default=60)
+    parser.add_argument('--step-per-epoch', type=int, default=10000)
     parser.add_argument('--step-per-collect', type=int, default=20)
     parser.add_argument('--update-per-step', type=float, default=0.1)
-    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--training-num', type=int, default=10)
     parser.add_argument('--test-num', type=int, default=10)
-    parser.add_argument('--logdir', type=str, default='results/log/cartpole1')
-    parser.add_argument('--render', type=float, default=0.)
+    parser.add_argument('--logdir', type=str, default='results/log/rl/lunarlander1')
+    parser.add_argument('--render', type=float, default=None)
     parser.add_argument(
         '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--frames-stack', type=int, default=1)
     parser.add_argument('--resume-path', type=str, default=None)
     parser.add_argument('--resume-id', type=str, default=None)
+    parser.add_argument('--n-frames', type=str, default=4)
     parser.add_argument(
         '--logger',
         type=str,
@@ -110,12 +111,12 @@ def get_args():
     return parser.parse_args()
 
 
-def make_custom_control_env(args):
-    return ClassicControlEnv(args.task)
+def make_custom_control_env(args, seed):
+    return ClassicControlEnv(args.task, seed=seed, n_frames=args.n_frames)
 
 
 def train_dqn(args=get_args()):
-    env = make_custom_control_env(args)
+    env = make_custom_control_env(args, args.seed)
     args.state_shape = env.observation_space.shape or env.observation_space.n
     args.action_shape = env.action_space.shape or env.action_space.n
     # should be N_FRAMES x H x W
@@ -123,18 +124,18 @@ def train_dqn(args=get_args()):
     print("Actions shape:", args.action_shape)
     # make environments
     train_envs = DummyVectorEnv(
-        [lambda: make_custom_control_env(args) for _ in range(args.training_num)]
+        [lambda: make_custom_control_env(args, args.seed + i) for i in range(args.training_num)]
     )
     test_envs = DummyVectorEnv(
-        [lambda: make_custom_control_env(args) for _ in range(args.test_num)]
+        [lambda: make_custom_control_env(args, args.seed + args.training_num + j) for j in range(args.test_num)]
     )
     # seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    train_envs.seed(args.seed)
-    test_envs.seed(args.seed)
+    #train_envs.seed(args.seed)
+    #test_envs.seed(args.seed)
     # define model
-    net = DQN_CNN(1, *args.state_shape, args.action_shape, args.device).to(args.device)
+    net = DQN_CNN(args.n_frames, *args.state_shape, args.action_shape, args.device).to(args.device)
     optim = torch.optim.Adam(net.parameters(), lr=args.lr)
     # define policy
     policy = DQNPolicy(net, optim, args.gamma, args.n_step,target_update_freq=args.target_update_freq

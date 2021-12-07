@@ -11,30 +11,32 @@ import numpy as np
 from torch import nn
 
 from causal_vae import utils as ut
-import nns
+from causal_vae.models import nns
 
 device = torch.device("cuda:0" if(torch.cuda.is_available()) else "cpu")
 
 class CausalVAE(nn.Module):
-    def __init__(self, nn='mask', name='vae', z_dim=16, z1_dim=4, z2_dim=4, inference=False, alpha=0.3, beta=1):
+    def __init__(self, nn='mask', name='vae', w=96, h=96, z_dim=16, z1_dim=4, z2_dim=4, inference=False, alpha=0.3, beta=1):
         super().__init__()
         self.name = name
+        self.w = w
+        self.h = h
         self.z_dim = z_dim
         self.z1_dim = z1_dim
         self.z2_dim = z2_dim
         self.channel = 4
-        self.scale = np.array([[0,44],[100,40],[6.5, 3.5],[10,5]])
+        self.scale = np.array([[0,1],[0,1],[0, 1],[0,1],[0,1]])
         # Small note: unfortunate name clash with torch.nn
         # nn here refers to the specific architecture file found in
         # codebase/models/nns/*.py
         nn = getattr(nns, nn)
-        self.enc = nn.Encoder(self.z_dim, self.channel)
-        self.dec = nn.Decoder_DAG(self.z_dim,self.z1_dim, self.z2_dim)
+        self.enc = nn.Encoder(self.w, self.h, self.z_dim, self.channel)
+        self.dec = nn.Decoder_DAG(self.w, self.h, self.z_dim,self.z1_dim, self.z2_dim)
         self.dag = nn.DagLayer(self.z1_dim, self.z1_dim, i = inference)
         #self.cause = nn.CausalLayer(self.z_dim, self.z1_dim, self.z2_dim)
         self.attn = nn.Attention(self.z1_dim)
-        self.mask_z = nn.MaskLayer(self.z_dim)
-        self.mask_u = nn.MaskLayer(self.z1_dim,z1_dim=1)
+        self.mask_z = nn.MaskLayer(self.z_dim, concept=self.z1_dim, z1_dim=self.z1_dim)
+        self.mask_u = nn.MaskLayer(self.z1_dim, concept=self.z1_dim, z1_dim=1)
 
         # Set prior as fixed parameter attached to Module
         self.z_prior_m = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -56,7 +58,7 @@ class CausalVAE(nn.Module):
             kl: tensor: (): ELBO KL divergence to prior
             rec: tensor: (): ELBO Reconstruction term
         """
-        assert label.size()[1] == self.z1_dim
+        assert label.size()[1] == self.z1_dim, f"Label size ({label.size()[1]}) != z1_dim ({self.z1_dim})"
 
         q_m, q_v = self.enc.encode(x.to(device))
         q_m, q_v = q_m.reshape([q_m.size()[0], self.z1_dim,self.z2_dim]),torch.ones(q_m.size()[0], self.z1_dim,self.z2_dim).to(device)

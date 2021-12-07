@@ -13,6 +13,7 @@ import random
 import argparse
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn import functional as F
 from torchvision import datasets, transforms
@@ -421,8 +422,8 @@ def evaluate_lower_bound(model, labeled_test_subset, run_iwae=True):
 # 	print("Test set classification accuracy: {}".format(accuracy))
 
 
-def save_model_by_name(model, global_step):
-	save_dir = os.path.join('checkpoints', model.name)
+def save_model_by_name(models_dir, model, global_step):
+	save_dir = os.path.join(models_dir, 'checkpoints', model.name)
 	if not os.path.exists(save_dir):
 		os.makedirs(save_dir)
 	file_path = os.path.join(save_dir, 'model-{:05d}.pt'.format(global_step))
@@ -723,6 +724,27 @@ class dataload_withlabel(data.Dataset):
 	def __len__(self):
 		return len(self.imgs)
 
+class ExperienceDataset(data.Dataset):
+	def __init__(self, root, xp_filename):
+
+		self.xp_df = pd.read_csv(os.path.join(root, xp_filename))
+		self.labels = self.xp_df.drop('Observation', axis=1).to_numpy()
+		self.observation_paths = [os.path.join(root, k) for k in self.xp_df['Observation']]
+
+		#self.transforms = transforms.Compose([transforms.ToTensor()])
+
+	def __getitem__(self, idx):
+		obs_path = self.observation_paths[idx]
+		obs = torch.from_numpy(np.load(obs_path))
+		label = torch.from_numpy(self.labels[idx])
+
+		# if self.transforms:
+		# 	obs = self.transforms(obs)
+		return obs.float(), label.float()
+
+	def __len__(self):
+		return len(self.observation_paths)
+
 
 def get_partitions(every_n_degree):
 	"""
@@ -761,8 +783,8 @@ def whether_num_fall_into_intevals(number, intervals_list):
 	return False
 
 
-def get_batch_unin_dataset_withlabel(dataset_dir, batch_size, dataset="train"):
-	dataset = dataload_withlabel(dataset_dir, dataset)
+def get_batch_unin_dataset_withlabel(dataset_dir, batch_size):
+	dataset = ExperienceDataset(dataset_dir, 'xp_df.csv')
 	dataset = Data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 	return dataset

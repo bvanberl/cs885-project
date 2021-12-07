@@ -13,6 +13,7 @@ import math
 import time
 from pprint import pprint
 
+from tqdm import tqdm
 import numpy as np
 import torch
 import torch.nn as nn
@@ -67,7 +68,7 @@ class DeterministicWarmup(object):
         self.t = self.t_max if t > self.t_max else t
         return self.t
 
-def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_save=5, run=0, train=True, color=False, toy=None):
+def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_save=50, run=0, train=True, color=False, toy=None):
     '''
     Train a CausalVAE model
     :param dataset_dir: Directory of saved data
@@ -89,17 +90,19 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
     ]
     model_name = '_'.join([t.format(v) for (t, v) in layout])
     print('Model name:', model_name)
-    lvae = CausalVAE(name=model_name, z_dim=16).to(device)
+    lvae = CausalVAE(name=model_name, w=84, h=84, z_dim=25, z1_dim=5, z2_dim=5).to(device)
     figs_vae_dir = os.path.join(results_dir, 'figs_vae')
     if not os.path.exists(figs_vae_dir):
         os.makedirs(figs_vae_dir)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
 
-    train_dataset = get_batch_unin_dataset_withlabel(dataset_dir, 64)
-    test_dataset = get_batch_unin_dataset_withlabel(dataset_dir, 1)
+    train_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'train'), 256)
+    test_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'test'), 1)
     optimizer = torch.optim.Adam(lvae.parameters(), lr=1e-3, betas=(0.9, 0.999))
     beta = DeterministicWarmup(n=100, t_max=1)  # Linear warm-up from 0 to 1 over 50 epoch
 
-    for epoch in range(epoch_max):
+    for epoch in tqdm(range(epoch_max)):
         lvae.train()
         total_loss = 0
         total_rec = 0
@@ -134,4 +137,10 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
 
         if epoch % iter_save == 0:
             ut.save_model_by_name(model_dir, lvae, epoch)
+            print(dag_param)
 
+if __name__=='__main__':
+    dataset_dir = 'B:/Datasets/School/CausalVAE/cartpole2'
+    results_dir = 'results/log/causalvae/cartpole2'
+    model_dir = 'results/models/causalvae/cartpole2'
+    train_causal_vae(dataset_dir, results_dir, model_dir)
