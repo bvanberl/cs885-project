@@ -2,25 +2,21 @@ import argparse
 import os
 import pprint
 
+import yaml
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
+from torch import nn
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import ShmemVectorEnv, SubprocVectorEnv, DummyVectorEnv
 from tianshou.policy import DQNPolicy
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger, WandbLogger
-
 from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
-import numpy as np
-import torch
-from torch import nn
-
-from tianshou.utils.net.discrete import NoisyLinear
-
 from envs.classic_control import ClassicControlEnv
+
+cfg = yaml.full_load(open(os.getcwd() + "/config.yml", 'r'))
 
 class DQN_CNN(nn.Module):
     """Reference: Human-level control through deep reinforcement learning.
@@ -30,6 +26,7 @@ class DQN_CNN(nn.Module):
 
     def __init__(
         self,
+        cfg: Dict,
         c: int,
         h: int,
         w: int,
@@ -40,17 +37,17 @@ class DQN_CNN(nn.Module):
         super().__init__()
         self.device = device
         self.net = nn.Sequential(
-            nn.Conv2d(c, 16, kernel_size=3, stride=1), nn.ReLU(inplace=True),
-            nn.Conv2d(16, 32, kernel_size=3, stride=1), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1), nn.ReLU(inplace=True),
+            nn.Conv2d(c, cfg['C0'], kernel_size=cfg['KERNEL'], stride=cfg['STRIDE']), nn.ReLU(inplace=True),
+            nn.Conv2d(cfg['C0'], cfg['C1'], kernel_size=cfg['KERNEL'], stride=cfg['STRIDE']), nn.ReLU(inplace=True),
+            nn.Conv2d(cfg['C1'], cfg['C2'], kernel_size=cfg['KERNEL'], stride=cfg['STRIDE']), nn.ReLU(inplace=True),
             nn.Flatten()
         )
         with torch.no_grad():
             self.output_dim = np.prod(self.net(torch.zeros(1, c, h, w)).shape[1:])
         if not features_only:
             self.net = nn.Sequential(
-                self.net, nn.Linear(self.output_dim, 256), nn.ReLU(inplace=True),
-                nn.Linear(256, np.prod(action_shape))
+                self.net, nn.Linear(self.output_dim, cfg['FC0']), nn.ReLU(inplace=True),
+                nn.Linear(cfg['FC0'], np.prod(action_shape))
             )
             self.output_dim = np.prod(action_shape)
 
@@ -135,7 +132,9 @@ def train_dqn(args=get_args()):
     #train_envs.seed(args.seed)
     #test_envs.seed(args.seed)
     # define model
-    net = DQN_CNN(args.n_frames, *args.state_shape, args.action_shape, args.device).to(args.device)
+
+    model_cfg = cfg['RL'][args.task.upper()]['DQN']
+    net = DQN_CNN(model_cfg, args.n_frames, *args.state_shape, args.action_shape, args.device).to(args.device)
     optim = torch.optim.Adam(net.parameters(), lr=args.lr)
     # define policy
     policy = DQNPolicy(net, optim, args.gamma, args.n_step,target_update_freq=args.target_update_freq

@@ -350,7 +350,7 @@ def log_sum_exp(x, dim=0):
 	return max_x + (new_x.exp().sum(dim)).log()
 
 
-def load_model_by_name(model, global_step):
+def load_model_by_name(models_dir, model, global_step):
 	"""
 	Load a model based on its name model.name and the checkpoint iteration step
 
@@ -358,7 +358,7 @@ def load_model_by_name(model, global_step):
 		model: Model: (): A model
 		global_step: int: (): Checkpoint iteration
 	"""
-	file_path = os.path.join('checkpoints',
+	file_path = os.path.join(models_dir, 'checkpoints',
 							 model.name,
 							 'model-{:05d}.pt'.format(global_step))
 	state = torch.load(file_path)
@@ -731,15 +731,16 @@ class ExperienceDataset(data.Dataset):
 		self.labels = self.xp_df.drop('Observation', axis=1).to_numpy()
 		self.observation_paths = [os.path.join(root, k) for k in self.xp_df['Observation']]
 
-		#self.transforms = transforms.Compose([transforms.ToTensor()])
+		self.transforms = transforms.Compose([transforms.ToTensor()])
 
 	def __getitem__(self, idx):
 		obs_path = self.observation_paths[idx]
-		obs = torch.from_numpy(np.load(obs_path))
+		obs = np.load(obs_path)
+		obs = np.moveaxis(obs, 0, -1) / 255.
 		label = torch.from_numpy(self.labels[idx])
 
-		# if self.transforms:
-		# 	obs = self.transforms(obs)
+		if self.transforms:
+			obs = self.transforms(obs)
 		return obs.float(), label.float()
 
 	def __len__(self):

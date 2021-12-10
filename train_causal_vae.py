@@ -90,14 +90,14 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
     ]
     model_name = '_'.join([t.format(v) for (t, v) in layout])
     print('Model name:', model_name)
-    lvae = CausalVAE(name=model_name, w=84, h=84, z_dim=25, z1_dim=5, z2_dim=5).to(device)
+    lvae = CausalVAE(name=model_name, w=84, h=84, z_dim=36, z1_dim=6, z2_dim=6).to(device)
     figs_vae_dir = os.path.join(results_dir, 'figs_vae')
     if not os.path.exists(figs_vae_dir):
         os.makedirs(figs_vae_dir)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    train_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'train'), 256)
+    train_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'train'), 64)
     test_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'test'), 1)
     optimizer = torch.optim.Adam(lvae.parameters(), lr=1e-3, betas=(0.9, 0.999))
     beta = DeterministicWarmup(n=100, t_max=1)  # Linear warm-up from 0 to 1 over 50 epoch
@@ -134,10 +134,10 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
         if epoch % 1 == 0:
             print(str(epoch) + ' loss:' + str(total_loss / m) + ' kl:' + str(total_kl / m) + ' rec:' + str(
                 total_rec / m) + 'm:' + str(m))
+            print(dag_param)
 
         if epoch % iter_save == 0:
             ut.save_model_by_name(model_dir, lvae, epoch)
-            print(dag_param)
 
 if __name__=='__main__':
     dataset_dir = 'B:/Datasets/School/CausalVAE/cartpole2'

@@ -25,7 +25,10 @@ class CausalVAE(nn.Module):
         self.z1_dim = z1_dim
         self.z2_dim = z2_dim
         self.channel = 4
-        self.scale = np.array([[0,1],[0,1],[0, 1],[0,1],[0,1]])
+
+        # For each label, scale = [midpoint, half of range]
+        self.scale = np.array([[0.5,0.5], [0.5,0.5], [0,5], [0,5], [0,5], [0,5]])
+
         # Small note: unfortunate name clash with torch.nn
         # nn here refers to the specific architecture file found in
         # codebase/models/nns/*.py
@@ -61,6 +64,7 @@ class CausalVAE(nn.Module):
         assert label.size()[1] == self.z1_dim, f"Label size ({label.size()[1]}) != z1_dim ({self.z1_dim})"
 
         q_m, q_v = self.enc.encode(x.to(device))
+        #q_m = self.scale[:,0] + q_m * 2 * self.scale[:,1]
         q_m, q_v = q_m.reshape([q_m.size()[0], self.z1_dim,self.z2_dim]),torch.ones(q_m.size()[0], self.z1_dim,self.z2_dim).to(device)
 
         decode_m, decode_v = self.dag.calculate_dag(q_m.to(device), torch.ones(q_m.size()[0], self.z1_dim,self.z2_dim).to(device))

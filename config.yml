@@ -1,0 +1,49 @@
+RL:
+  CARTPOLE-V0:
+    DQN:
+      C0: 32
+      C1: 64
+      C2: 64
+      KERNEL: 3
+      STRIDE: 2
+      FC0: 512
+  ACROBOT-V1:
+    DQN:
+      C0: 16
+      C1: 32
+      C2: 64
+      KERNEL: 3
+      STRIDE: 1
+      FC0: 256
+  PENDULUM-V0:
+    SAC:
+      CRITIC:
+        C0: 32
+        C1: 64
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 512
+      ACTOR:
+        C0: 32
+        C1: 64
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 512
+  MOUNTAINCARCONTINUOUS-V0:
+    SAC:
+      CRITIC:
+        C0: 32
+        C1: 64
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 512
+      ACTOR:
+        C0: 32
+        C1: 64
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 512

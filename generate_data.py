@@ -5,7 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from tianshou.data import Batch, ReplayBuffer, VectorReplayBuffer
 
-def create_data_for_causal_vae(data_dir, buffer_path):
+def create_data_for_causal_vae(data_dir, buffer_path, discrete_actions=False):
 
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
@@ -27,6 +27,9 @@ def create_data_for_causal_vae(data_dir, buffer_path):
         concepts.append(xp.info.concepts)
 
     actions = np.stack(actions, axis=0)
+    if discrete_actions:
+        actions = actions.astype(np.int)
+        actions = np.eye(np.max(actions) + 1)[actions]
     if len(actions.shape) < 2:
         actions = np.expand_dims(actions, axis=-1)
     concepts = np.stack(concepts, axis=0)
