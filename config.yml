@@ -1,0 +1,72 @@
+RL:
+  CARTPOLE-V0:
+    DQN:
+      C0: 32
+      C1: 64
+      C2: 64
+      KERNEL: 3
+      STRIDE: 2
+      FC0: 512
+  ACROBOT-V1:
+    DQN:
+      C0: 16
+      C1: 32
+      C2: 64
+      KERNEL: 3
+      STRIDE: 1
+      FC0: 256
+  PENDULUM-V0:
+    SAC:
+      CRITIC:
+        C0: 16
+        C1: 32
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 128
+      ACTOR:
+        C0: 16
+        C1: 32
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 128
+      ACTOR_LR: 0.0003
+      CRITIC_LR: 0.001
+      MAX_ACTION: 1.0
+      TAU: 0.005
+      GAMMA: 0.99
+      ALPHA: 0.2
+      REW_NORM: False
+  MOUNTAINCARCONTINUOUS-V0:
+    SAC:
+      CRITIC:
+        C0: 16
+        C1: 32
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 128
+      ACTOR:
+        C0: 16
+        C1: 32
+        C2: 64
+        KERNEL: 3
+        STRIDE: 2
+        FC0: 128
+      ACTOR_LR: 0.0003
+      CRITIC_LR: 0.001
+      MAX_ACTION: 1.0
+      TAU: 0.005
+      GAMMA: 0.99
+      ALPHA: 0.2
+      REW_NORM: False
+CAUSALVAE:
+  CARTPOLE-V0:
+    SCALE: [[0.5,0.5], [0.5,0.5], [0,5], [0,5], [0,0.418], [0,5]]
+  ACROBOT-V1:
+    SCALE: [[0.5,0.5], [0.5,0.5], [0.5,0.5], [0.0,1.0], [0.0,1.0], [0.0,1.0], [0.0,1.0], [0.0,10.0], [0.0,15.0]]
+  PENDULUM-V0:
+    SCALE: [[0.0,2.0], [0.0,1.0], [0.0,1.0], [0.0,10.0]]
+  MOUNTAINCARCONTINUOUS-V0:
+    SCALE: [[0.0,1.0], [-0.3,0.9], [0.0,0.07]]

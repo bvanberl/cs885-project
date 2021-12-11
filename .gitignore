@@ -1,6 +1,13 @@
 ## PROJECT-SPECIFIC
 
 venv/
+results/models/
+results/log/
+data/experience/
+
+!data/experience/.gitkeep
+!results/models/rl/.gitkeep
+!results/log/.gitkeep
 
 ## PYCHARM
 
