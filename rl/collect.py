@@ -6,10 +6,11 @@ import numpy as np
 import pandas as pd
 import torch
 from tianshou.data import Collector, VectorReplayBuffer
-from tianshou.policy import DQNPolicy
+from tianshou.policy import DQNPolicy, SACPolicy
 from tianshou.env import ShmemVectorEnv, SubprocVectorEnv, DummyVectorEnv
 
 from rl.dqn import DQN_CNN
+from rl.sac import Actor_CNN, Critic_CNN
 from envs import classic_control
 
 cfg = yaml.full_load(open(os.getcwd() + "/config.yml", 'r'))
@@ -68,12 +69,25 @@ def collect_experience_with_policy(env_name, n_envs, policy_type, policy_path, n
         net = DQN_CNN(model_cfg, n_frames, *state_shape, action_shape, device).to(device)
         optim = torch.optim.Adam(net.parameters(), lr=lr)
         policy = DQNPolicy(net, optim, 0.99, 3, target_update_freq=5000)
+    elif policy_type == 'SAC':
+        model_cfg = cfg['RL'][env_name.upper()]['SAC']
+        actor = Actor_CNN(model_cfg['ACTOR'], n_frames, *state_shape, action_shape, max_action=model_cfg['MAX_ACTION'],
+                          device=device, unbounded=False).to(device)
+        actor_optim = torch.optim.Adam(actor.parameters(), lr=model_cfg['ACTOR_LR'])
+        critic1 = Critic_CNN(model_cfg['CRITIC'], n_frames, *state_shape, action_shape, device=device).to(device)
+        critic1_optim = torch.optim.Adam(critic1.parameters(), lr=model_cfg['CRITIC_LR'])
+        critic2 = Critic_CNN(model_cfg['CRITIC'], n_frames, *state_shape, action_shape, device=device).to(device)
+        critic2_optim = torch.optim.Adam(critic2.parameters(), lr=model_cfg['CRITIC_LR'])
+        policy = SACPolicy(actor, actor_optim, critic1, critic1_optim, critic2, critic2_optim, tau=model_cfg['TAU'],
+            gamma=model_cfg['GAMMA'], alpha=model_cfg['ALPHA'], reward_normalization=model_cfg['REW_NORM'], exploration_noise=None,
+            action_space=env.action_space)
     else:
         raise Exception("Unsupported policy type.")
-    s_dict = torch.load(policy_path, map_location=device)['model']
+    s_dict = torch.load(policy_path, map_location=device)   #['model']
     policy.load_state_dict(s_dict)
     policy.eval()
-    policy.set_eps(0)   # Set epsilon to 0 for greedy action selection
+    if policy_type == 'DQN':
+        policy.set_eps(0)   # Set epsilon to 0 for greedy action selection
 
     buffer = VectorReplayBuffer(total_size=n_steps, buffer_num=n_envs)
     collector = Collector(policy, envs, buffer=buffer)
@@ -92,12 +106,12 @@ def generate_xp_dataset(env_name, n_envs, policy_type, policy_path, data_dir, n_
 
 if __name__=='__main__':
     n_frames = 4
-    env_name = 'CartPole-v0'
+    env_name = 'MountainCarContinuous-v0'
     n_envs = 5
-    policy_type = 'DQN'
-    policy_path = 'results/log/rl/cartpole2/CartPole-v0/dqn/checkpoint.pth'
-    experience_dir = 'data/experience/cartpole2/train'
-    data_dir = 'B:/Datasets/School/CausalVAE/cartpole2/train'
+    policy_type = 'SAC'
+    policy_path = 'results/log/rl/mcc2/MountainCarContinuous-v0/sac/policy.pth'
+    experience_dir = 'data/experience/mcc2/train'
+    data_dir = 'B:/Datasets/School/CausalVAE/mcc2/train'
     #collect_experience_with_policy(env_name, n_envs, policy_type, policy_path, experience_dir, n_frames, n_steps=50000)
     generate_xp_dataset(env_name, n_envs, policy_type, policy_path, data_dir, n_frames, n_steps=25000)
 

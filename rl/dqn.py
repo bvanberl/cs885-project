@@ -66,31 +66,31 @@ class DQN_CNN(nn.Module):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default='LunarLander-v2')
+    parser.add_argument('--task', type=str, default='Acrobot-v1')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--eps-test', type=float, default=0.005)
     parser.add_argument('--eps-train', type=float, default=1.)
     parser.add_argument('--eps-train-final', type=float, default=0.01)
-    parser.add_argument('--buffer-size', type=int, default=10000)
-    parser.add_argument('--lr', type=float, default=0.0001)
+    parser.add_argument('--buffer-size', type=int, default=50000)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--gamma', type=float, default=0.99)
-    parser.add_argument('--n-step', type=int, default=3)
-    parser.add_argument('--target-update-freq', type=int, default=5000)
-    parser.add_argument('--epoch', type=int, default=60)
+    parser.add_argument('--n-step', type=int, default=5)
+    parser.add_argument('--target-update-freq', type=int, default=1000)
+    parser.add_argument('--epoch', type=int, default=50)
     parser.add_argument('--step-per-epoch', type=int, default=10000)
-    parser.add_argument('--step-per-collect', type=int, default=20)
+    parser.add_argument('--step-per-collect', type=int, default=10)
     parser.add_argument('--update-per-step', type=float, default=0.1)
     parser.add_argument('--batch-size', type=int, default=256)
-    parser.add_argument('--training-num', type=int, default=10)
-    parser.add_argument('--test-num', type=int, default=10)
-    parser.add_argument('--logdir', type=str, default='results/log/rl/lunarlander1')
+    parser.add_argument('--training-num', type=int, default=5)
+    parser.add_argument('--test-num', type=int, default=5)
+    parser.add_argument('--logdir', type=str, default='results/log/rl/acrobot1')
     parser.add_argument('--render', type=float, default=None)
     parser.add_argument(
         '--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu'
     )
     parser.add_argument('--frames-stack', type=int, default=1)
     parser.add_argument('--resume-path', type=str, default=None)
-    parser.add_argument('--resume-id', type=str, default=None)
+    parser.add_argument('--resume-id', type=str, default=0)
     parser.add_argument('--n-frames', type=str, default=4)
     parser.add_argument(
         '--logger',
@@ -129,8 +129,8 @@ def train_dqn(args=get_args()):
     # seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    #train_envs.seed(args.seed)
-    #test_envs.seed(args.seed)
+    train_envs.seed(args.seed)
+    test_envs.seed(args.seed)
     # define model
 
     model_cfg = cfg['RL'][args.task.upper()]['DQN']

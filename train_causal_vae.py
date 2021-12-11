@@ -13,7 +13,9 @@ import math
 import time
 from pprint import pprint
 
+import matplotlib.pyplot as plt
 from tqdm import tqdm
+import yaml
 import numpy as np
 import torch
 import torch.nn as nn
@@ -26,6 +28,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
+import seaborn as sns
 
 from causal_vae.utils import get_batch_unin_dataset_withlabel, _h_A
 import causal_vae.utils as ut
@@ -33,6 +36,10 @@ from causal_vae.models.mask_vae import CausalVAE
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
+
+cfg = yaml.full_load(open(os.getcwd() + "/config.yml", 'r'))
+
+fig, ax = plt.subplots(1, 1)
 
 def _sigmoid(x):
     I = torch.eye(x.size()[0]).to(device)
@@ -68,7 +75,7 @@ class DeterministicWarmup(object):
         self.t = self.t_max if t > self.t_max else t
         return self.t
 
-def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_save=50, run=0, train=True, color=False, toy=None):
+def train_causal_vae(env_name, dataset_dir, results_dir, model_dir, epoch_max=101, iter_save=50, run=0, train=True, color=False, toy=None):
     '''
     Train a CausalVAE model
     :param dataset_dir: Directory of saved data
@@ -90,15 +97,15 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
     ]
     model_name = '_'.join([t.format(v) for (t, v) in layout])
     print('Model name:', model_name)
-    lvae = CausalVAE(name=model_name, w=84, h=84, z_dim=36, z1_dim=6, z2_dim=6).to(device)
+    lvae = CausalVAE(name=model_name, w=84, h=84, z_dim=9, z1_dim=3, z2_dim=3, scale=cfg['CAUSALVAE'][env_name.upper()]['SCALE']).to(device)
     figs_vae_dir = os.path.join(results_dir, 'figs_vae')
     if not os.path.exists(figs_vae_dir):
         os.makedirs(figs_vae_dir)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    train_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'train'), 64)
-    test_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'test'), 1)
+    train_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'train'), 256)
+    #test_dataset = get_batch_unin_dataset_withlabel(os.path.join(dataset_dir, 'test'), 1)
     optimizer = torch.optim.Adam(lvae.parameters(), lr=1e-3, betas=(0.9, 0.999))
     beta = DeterministicWarmup(n=100, t_max=1)  # Linear warm-up from 0 to 1 over 50 epoch
 
@@ -117,7 +124,8 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
 
             # dag_reg = dag_regularization(dag_param)
             h_a = _h_A(dag_param, dag_param.size()[0])
-            L = L + 3 * h_a + 0.5 * h_a * h_a  # - torch.norm(dag_param)
+            alpha = 4 # was 3
+            L = L + alpha * h_a + 0.5 * h_a * h_a  # - torch.norm(dag_param)
 
             L.backward()
             optimizer.step()
@@ -133,14 +141,21 @@ def train_causal_vae(dataset_dir, results_dir, model_dir, epoch_max=101, iter_sa
 
         if epoch % 1 == 0:
             print(str(epoch) + ' loss:' + str(total_loss / m) + ' kl:' + str(total_kl / m) + ' rec:' + str(
-                total_rec / m) + 'm:' + str(m))
+                total_rec / m) + ' m:' + str(m))
             print(dag_param)
+
+            plt.clf()
+            sns.heatmap(dag_param.detach().cpu().numpy(), annot=True, linewidths=.5, cmap="YlGnBu", annot_kws={"size":8})
+            plt.pause(0.1)
+            fig.savefig(os.path.join(figs_vae_dir, 'A_{}.png'.format(epoch)))
+
 
         if epoch % iter_save == 0:
             ut.save_model_by_name(model_dir, lvae, epoch)
 
 if __name__=='__main__':
-    dataset_dir = 'B:/Datasets/School/CausalVAE/cartpole2'
-    results_dir = 'results/log/causalvae/cartpole2'
-    model_dir = 'results/models/causalvae/cartpole2'
-    train_causal_vae(dataset_dir, results_dir, model_dir)
+    env_name = 'MountainCarContinuous-v0'
+    dataset_dir = 'B:/Datasets/School/CausalVAE/mcc2'
+    results_dir = 'results/log/causalvae/mcc2'
+    model_dir = 'results/models/causalvae/mcc2'
+    train_causal_vae(env_name, dataset_dir, results_dir, model_dir)

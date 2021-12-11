@@ -16,7 +16,7 @@ from causal_vae.models import nns
 device = torch.device("cuda:0" if(torch.cuda.is_available()) else "cpu")
 
 class CausalVAE(nn.Module):
-    def __init__(self, nn='mask', name='vae', w=96, h=96, z_dim=16, z1_dim=4, z2_dim=4, inference=False, alpha=0.3, beta=1):
+    def __init__(self, nn='mask', name='vae', w=96, h=96, z_dim=16, z1_dim=4, z2_dim=4, inference=False, alpha=0.3, beta=1, scale=None):
         super().__init__()
         self.name = name
         self.w = w
@@ -27,7 +27,7 @@ class CausalVAE(nn.Module):
         self.channel = 4
 
         # For each label, scale = [midpoint, half of range]
-        self.scale = np.array([[0.5,0.5], [0.5,0.5], [0,5], [0,5], [0,5], [0,5]])
+        self.scale = scale
 
         # Small note: unfortunate name clash with torch.nn
         # nn here refers to the specific architecture file found in
@@ -84,14 +84,14 @@ class CausalVAE(nn.Module):
               e_tilde[:, mask, :] = z_mask[:, mask, :]
               
           f_z1 = f_z+e_tilde
-          if mask!= None and mask == 2 :
+          if mask!= None and mask >= 2 :
               z_mask = torch.ones(q_m.size()[0],self.z1_dim,self.z2_dim).to(device)*adj
               f_z1[:, mask, :] = z_mask[:, mask, :]
               m_zv[:, mask, :] = z_mask[:, mask, :]
-          if mask!= None and mask == 3 :
-              z_mask = torch.ones(q_m.size()[0],self.z1_dim,self.z2_dim).to(device)*adj
-              f_z1[:, mask, :] = z_mask[:, mask, :]
-              m_zv[:, mask, :] = z_mask[:, mask, :]
+          # if mask!= None and mask == 3 :
+          #     z_mask = torch.ones(q_m.size()[0],self.z1_dim,self.z2_dim).to(device)*adj
+          #     f_z1[:, mask, :] = z_mask[:, mask, :]
+          #     m_zv[:, mask, :] = z_mask[:, mask, :]
           g_u = self.mask_u.mix(m_u).to(device)
           z_given_dag = ut.conditional_sample_gaussian(f_z1, m_zv*lambdav)
         
